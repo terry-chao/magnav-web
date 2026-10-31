@@ -11,7 +11,7 @@
 npm test
 ```
 
-结果：**9 个测试文件、50 项全部通过。**
+结果：**9 个测试文件、51 项全部通过。**
 
 | 套件 | 文件 | 覆盖 |
 |---|---|---|
@@ -20,7 +20,7 @@ npm test
 | 协议 / 场模型 | `field.test.ts` | 目标场强与方向、电流限幅、梯度、力矩、场线有限性 |
 | 协议 / 导航 | `nav.test.ts` | 分支缝合、根到远端 Dijkstra、最近节点、断连路径 |
 | 协议 / 状态机 | `machine.test.ts` | 9 项：就绪门禁、TRE、双人确认、暂停/继续、急停、接管、中止、非法迁移 |
-| 服务端 / 门禁 | `apps/server/tests/service.test.ts` | 11 项：预检、双人武装、角色拒绝、幂等、急停复位、故障注入、中止、接管重预检、登录 |
+| 服务端 / 门禁 | `apps/server/tests/service.test.ts` | 12 项：预检、双人武装、角色拒绝、幂等、急停复位、故障注入、中止、接管重预检、登录、演示会话复用 |
 | 服务端 / 持久化 | `apps/server/tests/persistence.test.ts` | 2 项：状态机事件重放与暂停恢复、文件型 DB 重开后的病例/计划保留 |
 | 服务端 / 网关 | `apps/server/tests/gateway.test.ts` | 4 项：默认模拟器、会话独立实例、未知模式失败、外部模式 fail-fast |
 | 客户端 / 坐标 | `apps/console/src/scene/coords.test.ts` | LPS↔scene 轴映射、200 组往返、100 组 `F·R·F⁻¹` 姿态基变换 |
@@ -41,11 +41,11 @@ npm run build
 
 | 产物 | 大小 | gzip |
 |---|---|---|
-| `apps/console/dist/assets/index-*.js` | 1,279 KB | 366 KB |
-| `apps/console/dist/assets/index-*.css` | 74.6 KB | 14.6 KB |
+| `apps/console/dist/assets/index-*.js` | 1,301 KB | 373 KB |
+| `apps/console/dist/assets/index-*.css` | 97.7 KB | 18.8 KB |
 | telemetry worker | 39.1 KB | — |
 | field worker | 39.5 KB | — |
-| `apps/server/dist/index.js`（含协议包） | 230.5 KB | — |
+| `apps/server/dist/index.js`（含协议包） | 231.7 KB | — |
 
 ---
 
@@ -53,14 +53,15 @@ npm run build
 
 ### 2.1 Playwright 自动化（`npm run test:e2e`）
 
-结果：**4 项全部通过**（真实 Chrome / 生产构建 / 隔离 SQLite）。
+结果：**5 项全部通过**（真实 Chrome / 生产构建 / 隔离 SQLite）。
 
 | # | 流程 | 结果 |
 |---|---|---|
-| 1 | 登录 → 3 个演示病例 | ✅ |
-| 2 | LCX 计划审核签字 → 可进入术中 | ✅ |
-| 3 | 预检 → 双人武装 → 启动 → 暂停 → 急停复位 → 中止 → 复盘 | ✅ |
-| 4 | 归档复盘播放 + 审计链校验 (`/audit/verify`) | ✅ |
+| 1 | 首页 → 一键登录 → 装载 LAD → 术中页 + DEMO 导览 | ✅ |
+| 2 | 登录 → 3 个演示病例 | ✅ |
+| 3 | LCX 计划审核签字 → 可进入术中 | ✅ |
+| 4 | 预检 → 双人武装 → 启动 → 暂停 → 急停复位 → 中止 → 复盘 | ✅ |
+| 5 | 归档复盘播放 + 审计链校验 (`/audit/verify`) | ✅ |
 
 ### 2.2 手工浏览器验收
 

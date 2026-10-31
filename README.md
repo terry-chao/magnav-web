@@ -46,18 +46,30 @@ npm run dev
 npm run build
 npm start
 # → http://127.0.0.1:8810
+# 首页可直接进入「2 分钟交互演示」，无需注册
 ```
 
 其他命令：
 
 ```bash
-npm test            # Vitest：协议 / 服务端门禁 / 持久化 / 网关（50 项）
-npm run test:e2e    # 构建 + Playwright：登录、审批、术中安全流程、复盘与审计（4 项）
+npm test            # Vitest：协议 / 服务端门禁 / 持久化 / 网关（51 项）
+npm run test:e2e    # 构建 + Playwright：首页演示、登录、审批、术中安全流程、复盘与审计（5 项）
 npm run typecheck   # 三个 workspace 全量 strict typecheck
 npm run smoke       # 无浏览器端到端：登录 → 建会话 → 预检 → 武装 → 遥测 → 暂停 → 急停 → 复盘
 ```
 
 > E2E 默认使用系统 Chrome；无 Chrome 的机器先执行 `npx playwright install chromium`。
+
+### 首页与交互演示
+
+打开 <http://127.0.0.1:8810> 是公开首页，不需要登录。点击「进入 2 分钟实操」会：
+
+1. 以演示术者身份登录（只用合成数据）；
+2. 重置/装载 `case-1031` 的 LAD 病例、配准与已签字计划；
+3. 打开真实术中控制台，并显示 DEMO 导览条；
+4. 引导完成预检、双人武装、长按启动、暂停与复盘。
+
+演示入口服务端为 `POST /api/v1/demo/start`；已经存在活动会话时会直接复用，避免重复创建。
 
 运行数据默认写入 `data/`（已 gitignore）：
 
@@ -211,8 +223,8 @@ magnav-web/
 
 ## 8. 验证
 
-- `npm test`：**50 项全部通过**（协议编解码 / 状态机 / 几何 / 场模型 / 导航图 / 服务端门禁 / 持久化恢复 / 网关工厂 / 坐标基变换）。
-- `npm run test:e2e`：**4 项 Playwright 通过**（登录与病例、计划审批、术中安全链路、复盘与审计校验）。
+- `npm test`：**51 项全部通过**（协议编解码 / 状态机 / 几何 / 场模型 / 导航图 / 服务端门禁 / 持久化恢复 / 网关工厂 / 坐标基变换）。
+- `npm run test:e2e`：**5 项 Playwright 通过**（首页一键演示、登录与病例、计划审批、术中安全链路、复盘与审计校验）。
 - `npm run typecheck`：三个 workspace 0 error（strict）。
 - `npm run build`：Vite 生产构建 + tsup 服务端 bundle 成功。
 - CI：`.github/workflows/ci.yml` 在 Node 24 上执行 typecheck、单测、构建与 Playwright。

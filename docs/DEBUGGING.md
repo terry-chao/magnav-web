@@ -101,7 +101,7 @@ Console · Chrome（调试页 :5174）
 | 配置 / 任务 | 用途 |
 |---|---|
 | `Vitest · 当前测试文件` | 调试当前打开的 `*.test.ts`（`${relativeFile}`） |
-| `Vitest · 全部` | 调试全部 50 项测试 |
+| `Vitest · 全部` | 调试全部 51 项测试 |
 | 任务 `test:all` | 终端运行 `npm test` |
 | 任务 `typecheck` | `npm run typecheck` |
 | 任务 `build:prod` | `npm run build` |
