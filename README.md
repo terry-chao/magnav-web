@@ -1,5 +1,21 @@
 # MAGNAV · 磁控介入手术机器人监督控制台
 
+<h3 align="center">
+  <a href="https://terry-chao.github.io/magnav-web/">🌐 在线网站</a>
+  &nbsp;·&nbsp;
+  <a href="https://terry-chao.github.io/magnav-web/demo">🕹️ 立即体验交互 Demo</a>
+</h3>
+
+<p align="center">
+  <a href="https://terry-chao.github.io/magnav-web/">
+    <img src="https://img.shields.io/badge/WEBSITE-LIVE-4DE2D0?style=for-the-badge&labelColor=04070B" alt="在线网站" />
+  </a>
+  &nbsp;
+  <a href="https://terry-chao.github.io/magnav-web/demo">
+    <img src="https://img.shields.io/badge/DEMO-TRY_NOW-FFB454?style=for-the-badge&labelColor=04070B" alt="交互 Demo" />
+  </a>
+</p>
+
 > **Web 全栈研究原型**：React 18 + Three.js 监督控制台 + Node.js 实时服务 + 确定性机器人/磁场模拟器。
 > 按 `plan/磁控介入手术机器人前端方案.md` 实现，**不使用 Electron 桌面壳**。
 
@@ -53,7 +69,8 @@ npm start
 
 GitHub Pages 只能托管静态文件，因此 Pages 版是**浏览器内演示**：共享 `procedureMachine`、`RobotEngine`、3D 场景与安全门禁；没有登录、SQLite、WebSocket 或多人同步。
 
-- Pages 地址：<https://terry-chao.github.io/magnav-web/>
+- 网站首页：<https://terry-chao.github.io/magnav-web/>
+- 交互 Demo：<https://terry-chao.github.io/magnav-web/demo>
 - 工作流：[`.github/workflows/pages.yml`](.github/workflows/pages.yml)
 - 首次使用需在仓库 **Settings → Pages → Build and deployment** 选择 **GitHub Actions**。
 - 本地构建与预览：
