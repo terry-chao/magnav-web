@@ -380,6 +380,7 @@ export const ALARM_DEFS: Record<string, AlarmDefinition> = {
   ESTOP_ACTIVE: { title: '软件急停已触发', severity: 'high', action: '确认现场安全后复位急停' },
   COIL_TEMP: { title: '线圈温升偏高', severity: 'medium', action: '降低负载，观察温升' },
   TRACKER_DEGRADED: { title: '跟踪器质量下降', severity: 'medium', action: '检查传感器与金属干扰' },
+  SERVICE_RESTART: { title: '服务重启', severity: 'high', action: '确认现场与器械位置，重新预检后再继续' },
   APPROACHING_TARGET: { title: '接近目标点', severity: 'low', action: '准备确认到达' },
   SEGMENT_START: { title: '进入新分段', severity: 'low', action: '监督分段执行' },
 };

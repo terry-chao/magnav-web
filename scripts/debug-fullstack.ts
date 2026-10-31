@@ -20,9 +20,10 @@ process.env.HOST ??= '127.0.0.1';
 // already running `npm start` instance.
 process.env.PORT ??= '8820';
 process.env.MAGNAV_API_PORT ??= process.env.PORT;
-// Separate audit log so F5 can run alongside the production instance without
-// two processes appending to the same hash chain.
+// Separate audit log and database so F5 can run alongside the production
+// instance without two processes sharing a hash chain or a SQLite file.
 process.env.MAGNAV_AUDIT_PATH ??= resolve(process.cwd(), 'data', 'debug-audit.jsonl');
+process.env.MAGNAV_DB_PATH ??= resolve(process.cwd(), 'data', 'debug.sqlite');
 
 const DEBUG_VITE_PORT = 5174;
 

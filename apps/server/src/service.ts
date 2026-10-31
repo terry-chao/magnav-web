@@ -44,9 +44,14 @@ import type {
 import { userByBadge, userById, verifyPin, type StoredUser } from './auth';
 import type { AuditChain } from './audit';
 import { buildPrecheck, composePlan, defaultRegistration } from './planning';
-import { RobotEngine } from './simulator';
+import {
+  createSimulatedGateway,
+  type GatewayFactory,
+  type RobotGateway,
+} from './gateway';
 import type { SeedData } from './seed';
 import { createVesselTree } from './seed/vessels';
+import { SqliteStore, type PersistedSessionData } from './persistence';
 
 export interface SessionSink {
   sessionId?: string;
@@ -88,7 +93,7 @@ export interface SessionRuntime {
   events: ServerEvent[];
   eventSeq: number;
   phases: Array<{ phase: ProcedurePhase; ts: number }>;
-  engine: RobotEngine;
+  engine: RobotGateway;
   sinks: Set<SessionSink>;
   createdAt: number;
   createdBy: string;
@@ -102,8 +107,10 @@ export interface SessionRuntime {
   trace: ReviewFrame[];
   processedCommands: Map<string, CommandAck>;
   commandOrder: string[];
-  lastFrame: ReturnType<RobotEngine['frame']> | null;
+  lastFrame: ReturnType<RobotGateway['frame']> | null;
   archived: boolean;
+  machineEvents: ProcedureEvent[];
+  lastPersistAt: number;
 }
 
 const SYSTEM_ACTOR = { id: 'system', name: '系统', role: 'engineer' as const };
@@ -118,15 +125,63 @@ export class ConsoleService {
   private timer: NodeJS.Timeout | null = null;
   private lastTick = Date.now();
   private caseSeq = 1034;
+  private readonly store: SqliteStore | null;
+  private readonly gatewayFactory: GatewayFactory;
   readonly audit: AuditChain;
 
-  constructor(seed: SeedData, audit: AuditChain) {
+  constructor(
+    seed: SeedData,
+    audit: AuditChain,
+    store: SqliteStore | null = null,
+    gatewayFactory: GatewayFactory = createSimulatedGateway,
+  ) {
     this.audit = audit;
+    this.store = store;
+    this.gatewayFactory = gatewayFactory;
+
+    if (store && !store.isEmpty()) {
+      this.restoreFromStore(store);
+      return;
+    }
+
     for (const record of seed.cases) this.cases.set(record.id, record);
     for (const [id, tree] of seed.trees) this.trees.set(id, tree);
     for (const [id, reg] of seed.registrations) this.registrations.set(id, reg);
     for (const [id, plan] of seed.plans) this.plans.set(id, plan);
+    this.caseSeq = Math.max(
+      1034,
+      ...[...this.cases.keys()]
+        .map((id) => Number(id.replace('case-', '')))
+        .filter((n) => Number.isFinite(n)),
+    );
+    this.persistSeed();
     this.seedArchivedSession();
+  }
+
+  private persistSeed(): void {
+    if (!this.store) return;
+    for (const record of this.cases.values()) this.store.saveCase(record);
+    for (const tree of this.trees.values()) this.store.saveTree(tree);
+    for (const registration of this.registrations.values()) {
+      this.store.saveRegistration(registration);
+    }
+    for (const plan of this.plans.values()) this.store.savePlan(plan);
+  }
+
+  private restoreFromStore(store: SqliteStore): void {
+    for (const record of store.loadCases()) this.cases.set(record.id, record);
+    for (const tree of store.loadTrees()) this.trees.set(tree.caseId, tree);
+    for (const registration of store.loadRegistrations()) {
+      this.registrations.set(registration.caseId, registration);
+    }
+    for (const plan of store.loadPlans()) this.plans.set(plan.id, plan);
+    this.caseSeq = Math.max(
+      1034,
+      ...[...this.cases.keys()]
+        .map((id) => Number(id.replace('case-', '')))
+        .filter((n) => Number.isFinite(n)),
+    );
+    for (const data of store.loadSessions()) this.restoreSession(data);
   }
 
   /* ---------------------------------------------------------------- */
@@ -261,8 +316,8 @@ export class ConsoleService {
 
     const tree = this.getTree(caseId);
     const registration = this.getRegistration(caseId);
-    const actor = this.createActor(plan, registration);
-    const phase = phaseOf(actor.getSnapshot().value);
+    const bootstrap = this.bootstrapMachine(plan, registration);
+    const { actor, phase } = bootstrap;
     const now = Date.now();
     const session: SessionRuntime = {
       id: `session-${caseId}-${randomUUID().slice(0, 8)}`,
@@ -284,7 +339,7 @@ export class ConsoleService {
       events: [],
       eventSeq: 0,
       phases: [{ phase, ts: now }],
-      engine: new RobotEngine(plan),
+      engine: this.gatewayFactory(plan),
       sinks: new Set(),
       createdAt: now,
       createdBy: user.id,
@@ -300,6 +355,8 @@ export class ConsoleService {
       commandOrder: [],
       lastFrame: null,
       archived: false,
+      machineEvents: bootstrap.events,
+      lastPersistAt: 0,
     };
     this.sessions.set(session.id, session);
     record.status = 'in_progress';
@@ -311,26 +368,171 @@ export class ConsoleService {
       `创建手术会话 ${session.id} · 计划 ${plan.name}`,
       caseId,
     );
+    this.store?.saveCase(record);
+    this.persistSession(session);
     this.emitNotice(session, 'info', `手术会话已创建 · ${plan.name} · 当前阶段 ${phase}`);
     this.broadcastSnapshot(session);
     return this.buildSnapshot(session, user, now);
   }
 
-  private createActor(plan: Plan, registration: RegistrationInfo) {
+  private createBaseActor(): Actor<typeof procedureMachine> {
     const actor = createActor(procedureMachine, {
-      input: {
-        treMm: registration.treMm,
-        planApproved: plan.status === 'approved',
-        feasibilityPassed: plan.feasibility.passed,
-        treMaxMm: LIMITS.treMaxMm,
-      },
+      input: { treMaxMm: LIMITS.treMaxMm },
     });
     actor.start();
-    actor.send({ type: 'LOAD_CASE' });
-    actor.send({ type: 'IMAGES_READY' });
-    if (plan.status === 'approved') actor.send({ type: 'PLAN_CONFIRMED' });
-    if (registration.treMm <= LIMITS.treMaxMm) actor.send({ type: 'REGISTERED' });
     return actor;
+  }
+
+  private bootstrapMachine(
+    plan: Plan,
+    registration: RegistrationInfo,
+  ): {
+    actor: Actor<typeof procedureMachine>;
+    events: ProcedureEvent[];
+    phase: ProcedurePhase;
+  } {
+    const actor = this.createBaseActor();
+    const events: ProcedureEvent[] = [
+      { type: 'SET_TRE', treMm: registration.treMm },
+      {
+        type: 'SET_PLAN',
+        approved: plan.status === 'approved',
+        feasible: plan.feasibility.passed,
+      },
+      { type: 'LOAD_CASE' },
+      { type: 'IMAGES_READY' },
+    ];
+    if (plan.status === 'approved') events.push({ type: 'PLAN_CONFIRMED' });
+    if (registration.treMm <= LIMITS.treMaxMm) events.push({ type: 'REGISTERED' });
+    for (const event of events) actor.send(event);
+    return { actor, events, phase: phaseOf(actor.getSnapshot().value) };
+  }
+
+  private sendMachine(session: SessionRuntime, event: ProcedureEvent): void {
+    session.machineEvents.push(event);
+    session.actor.send(event);
+  }
+
+  private persistSession(session: SessionRuntime): void {
+    if (!this.store) return;
+    this.store.saveSession({
+      id: session.id,
+      caseId: session.caseId,
+      planId: session.planId,
+      phase: session.phase,
+      createdAt: session.createdAt,
+      endedAt: session.endedAt,
+      previousPhase: session.previousPhase,
+      phaseChangedAt: session.phaseChangedAt,
+      precheck: session.precheck,
+      precheckPhase: session.precheckPhase,
+      alarms: session.alarms,
+      alarmSeq: session.alarmSeq,
+      events: session.events,
+      eventSeq: session.eventSeq,
+      phases: session.phases,
+      startedAt: session.startedAt,
+      createdBy: session.createdBy,
+      archived: session.archived,
+      lastPresenceAt: session.lastPresenceAt,
+      trace: session.trace,
+      machineEvents: session.machineEvents,
+      processedCommands: [...session.processedCommands.entries()],
+      commandOrder: session.commandOrder,
+      engineSMm: session.engine.sMm,
+    });
+    this.store.saveCase(session.record);
+    session.lastPersistAt = Date.now();
+  }
+
+  private restoreSession(data: PersistedSessionData): void {
+    const record = this.cases.get(data.caseId);
+    const plan = this.plans.get(data.planId);
+    const tree = this.trees.get(data.caseId);
+    const registration = this.registrations.get(data.caseId);
+    if (!record || !plan || !tree || !registration) {
+      console.warn(`[persistence] 跳过无法恢复的会话 ${data.id}（缺少病例/计划/血管/配准）`);
+      return;
+    }
+
+    const actor = this.createBaseActor();
+    for (const event of data.machineEvents) actor.send(event);
+    const replayPhase = phaseOf(actor.getSnapshot().value);
+    if (replayPhase !== data.phase) {
+      console.warn(
+        `[persistence] 会话 ${data.id} 重放阶段 ${replayPhase} 与持久化阶段 ${data.phase} 不一致，以重放为准`,
+      );
+    }
+
+    const engine = this.gatewayFactory(plan);
+    engine.sMm = Math.max(0, Math.min(plan.totalLengthMm, data.engineSMm));
+    if (replayPhase === 'ABORTING') engine.abort();
+    else engine.hold();
+
+    const now = Date.now();
+    const session: SessionRuntime = {
+      id: data.id,
+      caseId: data.caseId,
+      planId: data.planId,
+      record,
+      plan,
+      tree,
+      registration,
+      actor,
+      phase: replayPhase,
+      previousPhase: data.previousPhase,
+      phaseChangedAt: data.phaseChangedAt,
+      precheck: data.precheck,
+      precheckPhase: data.precheckPhase,
+      alarms: data.alarms,
+      alarmSeq: data.alarmSeq,
+      devices: this.initialDevices(),
+      events: data.events,
+      eventSeq: data.eventSeq,
+      phases: data.phases,
+      engine,
+      sinks: new Set(),
+      createdAt: data.createdAt,
+      createdBy: data.createdBy,
+      startedAt: data.startedAt,
+      endedAt: data.endedAt,
+      lastPresenceAt: now,
+      lastClientAt: now,
+      lastDeviceAt: now,
+      lastRecordAt: 0,
+      lastTelemetryAt: 0,
+      trace: data.trace,
+      processedCommands: new Map(data.processedCommands),
+      commandOrder: data.commandOrder,
+      lastFrame: null,
+      archived: data.archived,
+      machineEvents: data.machineEvents,
+      lastPersistAt: 0,
+    };
+    this.sessions.set(session.id, session);
+    record.sessionId = session.id;
+    if (data.archived) {
+      this.persistSession(session);
+      return;
+    }
+    this.audit.append(
+      SYSTEM_ACTOR,
+      'SESSION_RESTORE',
+      `恢复会话 ${session.id} · 阶段 ${replayPhase}`,
+      session.caseId,
+    );
+    this.emitNotice(session, 'warn', '服务重启后已恢复会话，运动保持暂停');
+
+    if (replayPhase === 'AUTO_RUNNING') {
+      this.applyMachine(
+        session,
+        { type: 'FAULT', reason: '服务重启，自动导航已暂停' },
+        '服务重启，自动导航已暂停',
+        'SERVICE_RESTART',
+      );
+      this.raiseAlarm(session, 'SERVICE_RESTART', '服务进程重启，自动导航已安全暂停并保持位置');
+    }
+    this.persistSession(session);
   }
 
   private buildSnapshot(session: SessionRuntime, user: User, now: number): SessionSnapshot {
@@ -481,6 +683,7 @@ export class ConsoleService {
       if (oldest) session.processedCommands.delete(oldest);
     }
     this.emitCommand(session, ack);
+    this.persistSession(session);
     return ack;
   }
 
@@ -563,7 +766,7 @@ export class ConsoleService {
       ranBy: user.id,
     };
     session.precheckPhase = session.phase;
-    session.actor.send({ type: 'PRECHECK_UPDATED', items: report.items });
+    this.sendMachine(session, { type: 'PRECHECK_UPDATED', items: report.items });
     this.emitPrecheck(session, session.precheck);
     this.audit.append(
       user,
@@ -575,6 +778,7 @@ export class ConsoleService {
       const failed = report.items.filter((i) => !i.passed).map((i) => i.label);
       this.emitNotice(session, 'warn', `预检未通过：${failed.join('、')}`);
     }
+    this.persistSession(session);
     return session.precheck;
   }
 
@@ -615,7 +819,7 @@ export class ConsoleService {
       throw new ServiceError('COUNTERSIGN_INVALID', '第二人确认失败：工牌或口令错误');
     }
 
-    session.actor.send({
+    this.sendMachine(session, {
       type: 'SET_COUNTERSIGN',
       armedBy: user.id,
       countersignedBy: second.id,
@@ -633,6 +837,7 @@ export class ConsoleService {
       session.caseId,
     );
     this.emitNotice(session, 'warn', `已武装：术者 ${user.name} / 助手 ${second.name}`);
+    this.persistSession(session);
   }
 
   private startAuto(
@@ -742,7 +947,7 @@ export class ConsoleService {
   ): void {
     this.requirePhase(session, ['AUTO_PAUSED', 'ARMED', 'MANUAL']);
     if (params.confirm !== true) throw new ServiceError('CONFIRM_REQUIRED');
-    session.actor.send({ type: 'RESET_ESTOP' });
+    this.sendMachine(session, { type: 'RESET_ESTOP' });
     const alarm = session.alarms.find((a) => a.code === 'ESTOP_ACTIVE' && !a.clearedAt);
     if (alarm) {
       alarm.acknowledged = true;
@@ -753,6 +958,7 @@ export class ConsoleService {
     }
     this.audit.append(user, 'RESET_ESTOP', '复位软件急停（现场已确认安全）', session.caseId);
     this.emitNotice(session, 'warn', '软件急停已复位 · 继续前请再次确认现场安全');
+    this.persistSession(session);
     this.broadcastSnapshot(session);
   }
 
@@ -761,6 +967,7 @@ export class ConsoleService {
     session.lastPresenceAt = now;
     this.emitDeadman(session);
     this.audit.append(user, 'PRESENCE', '术者确认在场', session.caseId);
+    this.persistSession(session);
   }
 
   private ackAlarm(session: SessionRuntime, alarmId: string, user: User): void {
@@ -772,6 +979,7 @@ export class ConsoleService {
       alarm.acknowledgedAt = Date.now();
       this.emitAlarmUpdate(session, alarm);
       this.audit.append(user, 'ACK_ALARM', `确认告警 ${alarm.code}`, session.caseId);
+      this.persistSession(session);
     }
   }
 
@@ -854,7 +1062,11 @@ export class ConsoleService {
       zOffset: (this.caseSeq % 5) - 2,
     });
     this.trees.set(id, tree);
-    this.registrations.set(id, defaultRegistration(id, 0.9, 'u-tech'));
+    const registration = defaultRegistration(id, 0.9, 'u-tech');
+    this.registrations.set(id, registration);
+    this.store?.saveCase(record);
+    this.store?.saveTree(tree);
+    this.store?.saveRegistration(registration);
     this.audit.append(
       user,
       'CASE_CREATE',
@@ -884,6 +1096,8 @@ export class ConsoleService {
     record.status = 'planning';
     record.updatedAt = Date.now();
     record.lastPlanId = plan.id;
+    this.store?.savePlan(plan);
+    this.store?.saveCase(record);
     this.audit.append(
       user,
       'PLAN_COMPOSE',
@@ -910,11 +1124,14 @@ export class ConsoleService {
     record.lastPlanId = plan.id;
     const session = this.getActiveSessionForCase(plan.caseId);
     if (session) {
-      session.actor.send({ type: 'SET_PLAN', approved: true, feasible: true });
+      this.sendMachine(session, { type: 'SET_PLAN', approved: true, feasible: true });
       if (session.phase === 'SEGMENTED') {
         this.applyMachine(session, { type: 'PLAN_CONFIRMED' }, '计划已审核签字');
       }
+      this.persistSession(session);
     }
+    this.store?.savePlan(plan);
+    this.store?.saveCase(record);
     this.audit.append(
       user,
       'PLAN_APPROVE',
@@ -931,13 +1148,15 @@ export class ConsoleService {
     const tre = sequence[Math.floor(Date.now() / 1000) % sequence.length]!;
     const registration = defaultRegistration(caseId, tre, user.id);
     this.registrations.set(caseId, registration);
+    this.store?.saveRegistration(registration);
     const session = this.getActiveSessionForCase(caseId);
     if (session) {
       session.registration = registration;
-      session.actor.send({ type: 'SET_TRE', treMm: tre });
+      this.sendMachine(session, { type: 'SET_TRE', treMm: tre });
       if (tre > LIMITS.treMaxMm) {
         this.raiseAlarm(session, 'TRE_EXCEEDED', `配准残差 ${tre.toFixed(1)} mm 超过 ${LIMITS.treMaxMm} mm`);
       }
+      this.persistSession(session);
     }
     this.audit.append(
       user,
@@ -977,7 +1196,7 @@ export class ConsoleService {
       session.engine.injection = { forceSpike: false, saturation: false, gradientSpike: false };
       if (session.registration.treMm > LIMITS.treMaxMm) {
         session.registration.treMm = 0.9;
-        session.actor.send({ type: 'SET_TRE', treMm: 0.9 });
+        this.sendMachine(session, { type: 'SET_TRE', treMm: 0.9 });
       }
       for (const alarm of session.alarms) {
         if (!alarm.clearedAt) {
@@ -990,11 +1209,12 @@ export class ConsoleService {
       }
       this.emitNotice(session, 'info', '故障注入已清除');
       this.audit.append(user, 'FAULT_CLEAR', '清除故障注入', session.caseId);
+      this.persistSession(session);
       return this.buildSnapshot(session, user, now);
     }
     if (type === 'tre') {
       session.registration.treMm = 2.4;
-      session.actor.send({ type: 'SET_TRE', treMm: 2.4 });
+      this.sendMachine(session, { type: 'SET_TRE', treMm: 2.4 });
       this.raiseAlarm(session, 'TRE_EXCEEDED', '注入故障：配准残差 2.4 mm > 1.5 mm');
       this.pauseForFault(session, 'TRE_EXCEEDED', '配准残差 2.4 mm 超限');
     } else if (type === 'force') {
@@ -1014,6 +1234,7 @@ export class ConsoleService {
     }
     this.audit.append(user, 'FAULT_INJECT', `注入故障：${type}`, session.caseId);
     this.emitNotice(session, 'warn', `故障注入：${type}`);
+    this.persistSession(session);
     return this.buildSnapshot(session, user, now);
   }
 
@@ -1161,6 +1382,10 @@ export class ConsoleService {
         session.lastRecordAt = now;
         this.recordReviewFrame(session, now);
       }
+
+      if (this.store && !session.archived && now - session.lastPersistAt >= 2000) {
+        this.persistSession(session);
+      }
     }
   }
 
@@ -1224,7 +1449,7 @@ export class ConsoleService {
   /* events, alarms, devices                                           */
   /* ---------------------------------------------------------------- */
 
-  private encodeFrame(frame: ReturnType<RobotEngine['frame']>): ArrayBuffer {
+  private encodeFrame(frame: ReturnType<RobotGateway['frame']>): ArrayBuffer {
     // dynamic import-free: protocol codec is small and synchronous
     return encodeTelemetry(frame);
   }
@@ -1380,9 +1605,12 @@ export class ConsoleService {
     code?: string,
   ): void {
     const previous = session.phase;
-    session.actor.send(event);
+    this.sendMachine(session, event);
     const next = phaseOf(session.actor.getSnapshot().value);
-    if (next === previous) return;
+    if (next === previous) {
+      this.persistSession(session);
+      return;
+    }
     const now = Date.now();
     session.previousPhase = previous;
     session.phase = next;
@@ -1415,6 +1643,7 @@ export class ConsoleService {
       });
       this.broadcastSnapshot(session);
     }
+    this.persistSession(session);
   }
 
   private initialDevices(): DeviceSnapshot {
@@ -1514,7 +1743,8 @@ export class ConsoleService {
     if (!record || !plan) return;
     const tree = this.trees.get(record.id)!;
     const registration = this.registrations.get(record.id)!;
-    const actor = this.createActor(plan, registration);
+    const bootstrap = this.bootstrapMachine(plan, registration);
+    const actor = bootstrap.actor;
     const session = {
       id: ARCHIVE_SESSION_ID,
       caseId: record.id,
@@ -1535,7 +1765,7 @@ export class ConsoleService {
       events: [] as ServerEvent[],
       eventSeq: 0,
       phases: [] as Array<{ phase: ProcedurePhase; ts: number }>,
-      engine: new RobotEngine(plan),
+      engine: this.gatewayFactory(plan),
       sinks: new Set<SessionSink>(),
       createdAt: Date.now() - 3 * 3600_000,
       createdBy: 'u-surgeon',
@@ -1549,8 +1779,10 @@ export class ConsoleService {
       trace: [] as ReviewFrame[],
       processedCommands: new Map<string, CommandAck>(),
       commandOrder: [] as string[],
-      lastFrame: null as ReturnType<RobotEngine['frame']> | null,
+      lastFrame: null as ReturnType<RobotGateway['frame']> | null,
       archived: true,
+      machineEvents: [...bootstrap.events],
+      lastPersistAt: 0,
     } as SessionRuntime;
 
     // Drive the machine through the full happy path (no broadcast).
@@ -1569,11 +1801,11 @@ export class ConsoleService {
       ranBy: 'u-surgeon',
     };
     session.precheckPhase = 'REGISTERED';
-    actor.send({ type: 'PRECHECK_UPDATED', items: precheck.items });
-    actor.send({ type: 'SET_COUNTERSIGN', armedBy: 'u-surgeon', countersignedBy: 'u-assistant' });
-    actor.send({ type: 'PRECHECK_PASSED' });
-    actor.send({ type: 'START_AUTO' });
-    actor.send({ type: 'TARGET_REACHED' });
+    this.sendMachine(session, { type: 'PRECHECK_UPDATED', items: precheck.items });
+    this.sendMachine(session, { type: 'SET_COUNTERSIGN', armedBy: 'u-surgeon', countersignedBy: 'u-assistant' });
+    this.sendMachine(session, { type: 'PRECHECK_PASSED' });
+    this.sendMachine(session, { type: 'START_AUTO' });
+    this.sendMachine(session, { type: 'TARGET_REACHED' });
 
     const startTs = Date.now() - 74_000;
     const engine = session.engine;
@@ -1713,6 +1945,7 @@ export class ConsoleService {
       record.id,
       endedAt,
     );
+    this.persistSession(session);
   }
 }
 

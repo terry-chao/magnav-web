@@ -20,6 +20,7 @@ import type {
   TelemetryFrame,
   Vec3,
 } from '@magnav/protocol';
+import type { RobotGateway } from './gateway';
 
 export type SimMode = 'HOLD' | 'RUNNING' | 'ABORTING';
 
@@ -81,7 +82,8 @@ function momentDirection(tangent: Vec3): Vec3 {
  * currents, forces and flags are derived from the same dipole model used by
  * the feasibility check.
  */
-export class RobotEngine {
+export class RobotEngine implements RobotGateway {
+  readonly kind = 'simulated' as const;
   readonly plan: Plan;
   readonly path: Vec3[];
   readonly totalMm: number;
