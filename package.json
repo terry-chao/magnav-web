@@ -17,20 +17,23 @@
     "build": "npm run build -w @magnav/console && npm run build -w @magnav/server",
     "start": "node apps/server/dist/index.js",
     "test": "vitest run",
+    "test:e2e": "npm run build && playwright test",
+    "test:e2e:ui": "npm run build && playwright test --ui",
     "test:watch": "vitest",
     "typecheck": "npm run typecheck -w @magnav/protocol && npm run typecheck -w @magnav/server && npm run typecheck -w @magnav/console",
     "smoke": "tsx scripts/ws-smoke.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.2",
     "@types/node": "22.9.0",
     "concurrently": "9.1.0",
     "playwright-core": "1.48.2",
-    "tsx": "4.19.2",
     "tsup": "8.3.5",
+    "tsx": "4.19.2",
     "typescript": "5.6.3",
     "vitest": "2.1.8"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   }
 }

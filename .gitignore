@@ -149,6 +149,11 @@ shots/
 tmp-*.ts
 tmp-*.py
 
+# Playwright
+playwright-report/
+test-results/
+.blob-report/
+
 # Astro generated types
 .astro/
 
