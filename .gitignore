@@ -142,6 +142,13 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
+# MAGNAV runtime and local artifacts
+data/
+shots/
+*.log
+tmp-*.ts
+tmp-*.py
+
 # Astro generated types
 .astro/
 

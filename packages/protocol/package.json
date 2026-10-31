@@ -1,0 +1,18 @@
+{
+  "name": "@magnav/protocol",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared protocol: types, binary telemetry codec, procedure state machine, geometry and magnetic field model",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --root ."
+  },
+  "dependencies": {
+    "xstate": "5.18.2"
+  }
+}
