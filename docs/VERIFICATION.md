@@ -11,7 +11,7 @@
 npm test
 ```
 
-结果：**7 个测试文件、44 项全部通过。**
+结果：**9 个测试文件、50 项全部通过。**
 
 | 套件 | 文件 | 覆盖 |
 |---|---|---|
@@ -21,6 +21,8 @@ npm test
 | 协议 / 导航 | `nav.test.ts` | 分支缝合、根到远端 Dijkstra、最近节点、断连路径 |
 | 协议 / 状态机 | `machine.test.ts` | 9 项：就绪门禁、TRE、双人确认、暂停/继续、急停、接管、中止、非法迁移 |
 | 服务端 / 门禁 | `apps/server/tests/service.test.ts` | 11 项：预检、双人武装、角色拒绝、幂等、急停复位、故障注入、中止、接管重预检、登录 |
+| 服务端 / 持久化 | `apps/server/tests/persistence.test.ts` | 2 项：状态机事件重放与暂停恢复、文件型 DB 重开后的病例/计划保留 |
+| 服务端 / 网关 | `apps/server/tests/gateway.test.ts` | 4 项：默认模拟器、会话独立实例、未知模式失败、外部模式 fail-fast |
 | 客户端 / 坐标 | `apps/console/src/scene/coords.test.ts` | LPS↔scene 轴映射、200 组往返、100 组 `F·R·F⁻¹` 姿态基变换 |
 
 ### 类型检查
@@ -43,11 +45,24 @@ npm run build
 | `apps/console/dist/assets/index-*.css` | 74.6 KB | 14.6 KB |
 | telemetry worker | 39.1 KB | — |
 | field worker | 39.5 KB | — |
-| `apps/server/dist/index.js`（含协议包） | 216.6 KB | — |
+| `apps/server/dist/index.js`（含协议包） | 230.5 KB | — |
 
 ---
 
 ## 2. 浏览器端到端
+
+### 2.1 Playwright 自动化（`npm run test:e2e`）
+
+结果：**4 项全部通过**（真实 Chrome / 生产构建 / 隔离 SQLite）。
+
+| # | 流程 | 结果 |
+|---|---|---|
+| 1 | 登录 → 3 个演示病例 | ✅ |
+| 2 | LCX 计划审核签字 → 可进入术中 | ✅ |
+| 3 | 预检 → 双人武装 → 启动 → 暂停 → 急停复位 → 中止 → 复盘 | ✅ |
+| 4 | 归档复盘播放 + 审计链校验 (`/audit/verify`) | ✅ |
+
+### 2.2 手工浏览器验收
 
 以下流程均在真实浏览器中执行并通过（Playwright + 系统 Chrome）：
 
@@ -76,7 +91,21 @@ npm run build
 | 21 | 审计页：链校验通过、NDJSON 导出 | ✅ |
 | 22 | 生产单端口 (`:8810`)：静态资源、CSP、Worker、WS、Cookie | ✅ |
 
-### 关键观测值
+### 2.3 服务重启恢复
+
+在 `AUTO_RUNNING` 状态下直接终止服务进程，再以同一 SQLite 文件重启：
+
+| 检查 | 结果 |
+|---|---|
+| 会话被恢复 | ✅ 同一 `sessionId`，阶段 `AUTO_PAUSED` |
+| 运动安全 | ✅ 引擎弧长保留、`HOLD`，不自动继续 |
+| 告警 | ✅ 出现高危 `SERVICE_RESTART`，需确认后才能继续 |
+| 归档复盘 | ✅ 轨迹、事件、审计仍可打开 |
+| 种子/审计重复 | ✅ DB 非空时不再播种；重启不追加归档审计 |
+
+单元测试 `persistence.test.ts` 覆盖同一路径（状态机事件重放、弧长恢复、文件型 DB 重开）。
+
+### 2.4 关键观测值
 
 | 指标 | 观测 |
 |---|---|
@@ -117,10 +146,10 @@ npm run build
 - 8 h 连续运行、堆增长 < 5%、显存泄漏；
 - 真实 DICOM / Cornerstone3D、MPR、窗宽窗位；
 - 真实硬件在环（跟踪器、线圈、急停回路、脚踏）；
-- 1 kHz 实时层与真实安全包络；
+- 1 kHz 实时层与真实安全包络；`RobotGateway` 外部适配器尚未实现；
 - 故障注入自动化（拔网线、杀进程、断电、丢帧）；
 - 可用性形成性/总结性评估、use error 分析；
-- 多实例一致性、数据库持久化、WORM 审计；
+- 多实例一致性、SQLite → PostgreSQL 迁移、WORM 审计；
 - 浏览器矩阵（Chrome 之外）、4K 降采样、触摸屏手型测试。
 
 ---
@@ -131,6 +160,7 @@ npm run build
 npm install
 npm run typecheck
 npm test
+npm run test:e2e
 npm run build
 npm start
 # 打开 http://127.0.0.1:8810

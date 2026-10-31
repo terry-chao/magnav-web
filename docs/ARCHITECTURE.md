@@ -17,8 +17,9 @@ Browser（同一台工作站或院内终端）
 Fastify :8810
   ├─ REST /api/v1/*（登录、病例、计划、配准、会话、复盘、设备、审计、故障注入）
   ├─ 权威 xstate 过程状态机（每会话一个 actor）
-  ├─ 模拟器（120 Hz 运动学 + 偶极子场 + 线圈电流）
+  ├─ RobotGateway（接口）→ RobotEngine（simulated）/ 外部实时层适配器
   ├─ 安全服务（预检、双人确认、deadman、看门狗、告警、急停）
+  ├─ SQLite 持久化（病例、计划、配准、会话、状态机事件、告警、复盘帧）
   └─ 审计链（内存 + data/audit.jsonl 追加）
 ```
 
@@ -313,7 +314,7 @@ WS binary ──▶ telemetry.worker（decodeTelemetry，零拷贝）
 3. **Ant Design → 自绘设计系统**；**Cornerstone3D → 合成 DSA**。
 4. **protobuf → 自定义固定布局二进制**：无 schema 编译链，帧长固定，Worker 零拷贝；代价是版本演进需显式处理。
 5. **不实现 1 kHz 闭环**，前端模拟器为演示；生产必须替换为实时层接口。
-6. **单进程内存存储**，无数据库 / 多实例；审计文件持久化。
+6. **单进程 SQLite 持久化**：病例、计划、配准、会话与复盘帧落库，支持进程重启恢复；未做多实例并发。审计仍为 JSONL 哈希链。
 7. **无 5 分钟自动锁屏**；登录会话 8 h。
 8. **无专用助手/影像屏**；通过多客户端 + RBAC 只读实现同步。
 
@@ -321,9 +322,9 @@ WS binary ──▶ telemetry.worker（decodeTelemetry，零拷贝）
 
 ## 11. 后续演进
 
-- 接入真实实时层：protobuf / gRPC-Web 或二进制协议 v2；服务端替换模拟器，保留 FSM 与审计。
+- 接入真实实时层：实现 `RobotGateway` 外部适配器；protobuf / gRPC-Web 或二进制协议 v2，保留 FSM 与审计（契约见 `docs/INTEGRATION.md`）。
 - 接入 DICOMweb / Cornerstone3D；血管树由分割服务产出 GLB/JSON。
-- 持久化：病例、计划、会话、审计入 PostgreSQL；审计链分段落盘与外部时间戳。
+- 持久化演进：SQLite → PostgreSQL；审计链分段落盘、外部时间戳与 WORM；多实例会话锁与一致性。
 - 多屏：助手屏 / 影像屏专用路由与只读订阅；同一 session 多端状态以快照 + 事件重建。
 - 可用性：IEC 62366-1 形成性/总结性评估；告警 sound set 按 IEC 60601-1-8 校准。
 - 可靠性：8 h 压测、WebGL 上下文恢复演练、故障注入台架。

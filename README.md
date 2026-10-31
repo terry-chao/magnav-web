@@ -27,12 +27,14 @@
 - **单一 WebSocket 复用**：二进制遥测 + JSON 事件/命令走同一条 `/ws/v1`，避免双通道状态漂移（与方案「不要两套命令通道」的原则一致）。
 - **服务端权威状态机**：xstate v5 机器定义在 `@magnav/protocol` 共享，服务端持有唯一实例；前端只做展示与本地可用性提示。
 - **确定性模拟器**：同一套偶极子场模型用于可行性检查、线圈电流求解和遥测合成；无硬件也能开发、演示与回放。
+- **实时层网关边界**：服务端只依赖 `RobotGateway` 接口，模拟器是默认实现；真实 1 kHz 实时层可按同一契约接入，见 [`docs/INTEGRATION.md`](docs/INTEGRATION.md)。
+- **SQLite 持久化**：病例、计划、配准、会话（含状态机事件、告警、复盘轨迹）落库；服务重启后自动恢复，运动保持暂停并产生 `SERVICE_RESTART` 告警。
 
 ---
 
 ## 2. 快速开始
 
-要求：Node.js ≥ 20（仓库在 Node 24 / Windows 11 下验证）。
+要求：Node.js ≥ 22.13（仓库在 Node 24 / Windows 11 下验证；使用内置 `node:sqlite`，无需原生编译）。
 
 ```bash
 npm install
@@ -49,10 +51,30 @@ npm start
 其他命令：
 
 ```bash
-npm test            # Vitest：协议 / 服务端门禁 / 坐标转换（44 项）
+npm test            # Vitest：协议 / 服务端门禁 / 持久化 / 网关（50 项）
+npm run test:e2e    # 构建 + Playwright：登录、审批、术中安全流程、复盘与审计（4 项）
 npm run typecheck   # 三个 workspace 全量 strict typecheck
 npm run smoke       # 无浏览器端到端：登录 → 建会话 → 预检 → 武装 → 遥测 → 暂停 → 急停 → 复盘
 ```
+
+> E2E 默认使用系统 Chrome；无 Chrome 的机器先执行 `npx playwright install chromium`。
+
+运行数据默认写入 `data/`（已 gitignore）：
+
+| 文件 | 内容 |
+|---|---|
+| `data/magnav.sqlite` | 病例、计划、配准、会话、状态机事件、告警、复盘帧 |
+| `data/audit.jsonl` | 追加式 SHA-256 哈希链审计 |
+| `data/debug.sqlite` / `data/debug-audit.jsonl` | F5 调试实例（与生产隔离） |
+
+首次启动会播种 3 个演示病例和归档复盘；之后 DB 非空时不会重复播种。服务重启时会话恢复为暂停态，必须确认现场后手动继续。
+
+### 持久化与会话恢复
+
+- 服务端在命令、阶段变化、告警、在场确认和每 2 s 的 tick 中持久化会话；重启时重放状态机事件恢复上下文。
+- 处于 `AUTO_RUNNING` 的会话在恢复时被强制转为 `AUTO_PAUSED`，并产生高危 `SERVICE_RESTART` 告警。
+- 前端刷新或重新登录后通过 `activeSessionId` 自动回到当前会话，不新建会话。
+- 数据库路径可用 `MAGNAV_DB_PATH` 覆盖；调试实例自动使用独立 DB 和审计文件。
 
 ### VS Code 按 F5 调试
 
@@ -189,9 +211,11 @@ magnav-web/
 
 ## 8. 验证
 
-- `npm test`：**44 项全部通过**（协议编解码 / 状态机 / 几何 / 场模型 / 导航图 / 服务端门禁 / 坐标基变换）。
+- `npm test`：**50 项全部通过**（协议编解码 / 状态机 / 几何 / 场模型 / 导航图 / 服务端门禁 / 持久化恢复 / 网关工厂 / 坐标基变换）。
+- `npm run test:e2e`：**4 项 Playwright 通过**（登录与病例、计划审批、术中安全链路、复盘与审计校验）。
 - `npm run typecheck`：三个 workspace 0 error（strict）。
 - `npm run build`：Vite 生产构建 + tsup 服务端 bundle 成功。
+- CI：`.github/workflows/ci.yml` 在 Node 24 上执行 typecheck、单测、构建与 Playwright。
 - 浏览器验证：登录、病例、规划、审批、3D 选点、预检、双人武装、启动、120 Hz 遥测、暂停、故障注入（第二客户端）、急停 / 复位、中止、完成、复盘、审计导出。
 - 生产模式验证：`http://127.0.0.1:8810` 单端口、CSP、Worker、WS、Cookie 鉴权均通过。
 
@@ -201,8 +225,9 @@ magnav-web/
 
 ## 9. 已知限制
 
-- 单进程内存态；服务重启会重置病例 / 会话（审计 JSONL 保留）。生产需数据库与多实例一致性设计。
+- 单进程 SQLite；已支持重启恢复，但未实现多实例并发写与跨节点一致性。生产建议迁移 PostgreSQL + 会话锁。
 - 模拟器为确定性运动学，不包含导管-血管接触力学、血液流变或真实磁线圈耦合。
+- `MAGNAV_GATEWAY=external` 目前为 fail-fast 占位；真实实时层适配器需按 [`docs/INTEGRATION.md`](docs/INTEGRATION.md) 实现。
 - 2D DSA 为合成投影，不是 DICOM 查看器；未集成 Cornerstone3D。
 - 登录为本地口令 + HttpOnly Cookie；未接医院 LDAP / 双因素。
 - 未实现 5 分钟无操作自动锁屏（方案中的建议项）。
@@ -217,6 +242,7 @@ magnav-web/
 - [`docs/SAFETY.md`](docs/SAFETY.md) — 安全论证边界、危害与控制、审计
 - [`docs/DEMO.md`](docs/DEMO.md) — 演示脚本与预期现象
 - [`docs/DEBUGGING.md`](docs/DEBUGGING.md) — VS Code F5、断点、端口与附加调试
+- [`docs/INTEGRATION.md`](docs/INTEGRATION.md) — `RobotGateway` 契约、实时层接入与协议 v2 计划
 - [`docs/VERIFICATION.md`](docs/VERIFICATION.md) — 测试与验收记录
 - [`plan/磁控介入手术机器人前端方案.md`](plan/磁控介入手术机器人前端方案.md) — 原始方案
 
