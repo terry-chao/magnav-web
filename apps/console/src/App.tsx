@@ -6,6 +6,7 @@ import { http, setCsrfToken } from './services/http';
 import { realtime } from './services/realtime';
 import { useSessionStore } from './store/session';
 import { LoginPage } from './pages/LoginPage';
+import { HomePage } from './pages/HomePage';
 import { CasesPage } from './pages/CasesPage';
 import { PlanningPage } from './pages/PlanningPage';
 import { ProcedurePage } from './pages/ProcedurePage';
@@ -114,9 +115,9 @@ export function App() {
   return (
     <>
       <Routes>
+        <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route element={<RequireAuth />}>
-          <Route path="/" element={<Navigate to="/cases" replace />} />
           <Route path="/cases" element={<CasesPage />} />
           <Route path="/case/:caseId/plan" element={<PlanningPage />} />
           <Route path="/case/:caseId/procedure" element={<ProcedurePage />} />

@@ -1601,6 +1601,17 @@ tr:hover .row-arrow {
     #060b10;
   overflow-y: auto;
 }
+.login__home {
+  align-self: flex-start;
+  margin-bottom: 14px;
+  color: var(--text-3);
+  font-size: 11px;
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+.login__home:hover {
+  color: var(--accent);
+}
 .login__card {
   width: 100%;
   max-width: 470px;

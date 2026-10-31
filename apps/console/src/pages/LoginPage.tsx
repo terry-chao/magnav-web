@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Fingerprint, LockKeyhole, ShieldCheck, Sparkles } from 'lucide-react';
 import { DISCLAIMER, ROLE_META, type Role } from '@magnav/protocol';
 import { http } from '../services/http';
@@ -142,6 +142,9 @@ export function LoginPage() {
       </aside>
 
       <main className="login__panel">
+        <Link to="/" className="login__home">
+          ← 返回首页 / 交互演示
+        </Link>
         <div className="login__card">
           <div className="login__card-head">
             <span className="eyebrow">SECURE ACCESS</span>

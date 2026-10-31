@@ -301,6 +301,39 @@ export class ConsoleService {
   /* sessions                                                          */
   /* ---------------------------------------------------------------- */
 
+  /**
+   * Homepage demo entry. Resets the seeded LAD case to a fresh runnable state
+   * (or resumes the currently active session) and hands control to the real
+   * procedure page. Demo-only convenience; normal sessions still go through
+   * the gated `createSession` path.
+   */
+  startDemo(user: User): SessionSnapshot {
+    if (user.role !== 'surgeon' && user.role !== 'assistant') {
+      throw new ServiceError('FORBIDDEN', '仅术者或助手可进入交互演示', undefined, 403);
+    }
+    const caseId = 'case-1031';
+    const planId = 'plan-1031-lad';
+    const active = this.getActiveSessionForCase(caseId);
+    if (active) return this.buildSnapshot(active, user, Date.now());
+
+    const record = this.getCase(caseId);
+    record.status = 'plan_ready';
+    record.progressPct = 0;
+    record.sessionId = undefined;
+    record.updatedAt = Date.now();
+    this.store?.saveCase(record);
+
+    // Keep the public demo repeatable even if a previous visitor left the
+    // registration in an over-limit state.
+    const registration = defaultRegistration(caseId, 0.9, user.id);
+    this.registrations.set(caseId, registration);
+    this.store?.saveRegistration(registration);
+
+    const snapshot = this.createSession(caseId, planId, user);
+    this.audit.append(user, 'DEMO_START', '进入首页交互演示', caseId);
+    return snapshot;
+  }
+
   createSession(caseId: string, planId: string, user: User): SessionSnapshot {
     const record = this.getCase(caseId);
     const plan = this.getPlan(planId);
@@ -313,7 +346,6 @@ export class ConsoleService {
     }
     const existing = this.getActiveSessionForCase(caseId);
     if (existing) return this.buildSnapshot(existing, user, Date.now());
-
     const tree = this.getTree(caseId);
     const registration = this.getRegistration(caseId);
     const bootstrap = this.bootstrapMachine(plan, registration);

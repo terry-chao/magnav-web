@@ -120,6 +120,9 @@ export const http = {
       body: JSON.stringify({ caseId, planId }),
     });
   },
+  startDemo() {
+    return request<SessionSnapshot>('/demo/start', { method: 'POST' });
+  },
   session(sessionId: string) {
     return request<SessionSnapshot>(`/sessions/${sessionId}`);
   },

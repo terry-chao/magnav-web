@@ -193,4 +193,13 @@ describe('ConsoleService safety gates', () => {
     const resolved = auth.resolve(login.token);
     expect(resolved?.user.role).toBe('surgeon');
   });
+
+  it('resumes the same homepage demo session instead of creating duplicates', () => {
+    const demo = new ConsoleService(buildSeedData(), new AuditChain(null));
+    const first = demo.startDemo(surgeon);
+    expect(first.phase).toBe('REGISTERED');
+    const second = demo.startDemo(surgeon);
+    expect(second.sessionId).toBe(first.sessionId);
+    expect(demo.listSessionsForCase('case-1031')).toHaveLength(1);
+  });
 });

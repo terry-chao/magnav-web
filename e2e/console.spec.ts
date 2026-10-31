@@ -3,6 +3,15 @@ import { hold, login, waitForPhase } from './helpers';
 
 test.describe.configure({ mode: 'serial' });
 
+test('首页可一键进入交互演示', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByRole('heading', { name: /看得见导管/ })).toBeVisible();
+  await page.getByRole('button', { name: /进入 2 分钟实操/ }).click();
+  await expect(page).toHaveURL(/\/case\/case-1031\/procedure\?demo=1/);
+  await expect(page.locator('.demo-coach')).toBeVisible();
+  await waitForPhase(page, '已配准');
+});
+
 test('登录后加载三个演示病例', async ({ page }) => {
   await login(page, '术者');
   await expect(page.locator('.cases-table tbody tr')).toHaveCount(3);

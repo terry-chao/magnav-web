@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Activity,
   AlarmClock,
@@ -60,6 +60,7 @@ import { SceneToolbar } from '../components/SceneToolbar';
 import type { SceneLayers } from '../scene/SceneContent';
 import type { ViewPreset } from '../scene/CameraRig';
 import { DsaPanel } from '../components/procedure/DsaPanel';
+import { DemoCoach } from '../components/DemoCoach';
 import {
   AlarmStack,
   CoilPanel,
@@ -104,6 +105,8 @@ function bootstrapErrorText(error: unknown): string {
 
 export function ProcedurePage() {
   const { caseId = '' } = useParams();
+  const [searchParams] = useSearchParams();
+  const demoMode = searchParams.get('demo') === '1';
   const location = useLocation();
   const navigate = useNavigate();
   const user = useSessionStore((s) => s.user);
@@ -405,6 +408,21 @@ export function ProcedurePage() {
           </div>
         </div>
       </header>
+
+      {demoMode ? (
+        <DemoCoach
+          phase={phase}
+          precheckPassed={Boolean(snapshot.precheck?.passed)}
+          estopLatched={estopLatched}
+          onRunPrecheck={() => void send('START_PRECHECK')}
+          onArm={() => setArmOpen(true)}
+          onStart={() => setStartOpen(true)}
+          onPause={() => void send('PAUSE', { reason: '演示：术者暂停' })}
+          onResume={() => void send('RESUME')}
+          onReview={enterReview}
+          onExit={() => navigate('/')}
+        />
+      ) : null}
 
       <div className="procedure-grid">
         <aside className="procedure-side procedure-left">

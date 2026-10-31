@@ -258,6 +258,10 @@ export async function buildApp(deps: AppDeps): Promise<FastifyInstance> {
     return deps.service.createSession(input.caseId, input.planId, user);
   });
 
+  app.post('/api/v1/demo/start', async (req) => {
+    return deps.service.startDemo(authUser(req));
+  });
+
   app.get('/api/v1/sessions/:sessionId', async (req) => {
     const user = authUser(req);
     const { sessionId } = req.params as { sessionId: string };
