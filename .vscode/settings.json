@@ -1,0 +1,26 @@
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "typescript.enablePromptUseWorkspaceTsdk": true,
+  "debug.javascript.autoAttachFilter": "onlyWithFlag",
+  "debug.javascript.terminalOptions": {
+    "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+  },
+  "files.eol": "\n",
+  "files.exclude": {
+    "**/dist": true,
+    "**/*.tsbuildinfo": true,
+    "**/data": true
+  },
+  "search.exclude": {
+    "**/dist": true,
+    "**/node_modules": true,
+    "**/package-lock.json": true,
+    "**/data": true
+  },
+  "files.watcherExclude": {
+    "**/dist/**": true,
+    "**/data/**": true,
+    "**/node_modules/**": true
+  },
+  "terminal.integrated.defaultProfile.windows": "PowerShell"
+}

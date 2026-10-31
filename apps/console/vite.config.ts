@@ -2,6 +2,8 @@ import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+const apiPort = process.env.MAGNAV_API_PORT ?? '8810';
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -20,11 +22,11 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8810',
+        target: `http://127.0.0.1:${apiPort}`,
         changeOrigin: false,
       },
       '/ws': {
-        target: 'ws://127.0.0.1:8810',
+        target: `ws://127.0.0.1:${apiPort}`,
         ws: true,
       },
     },

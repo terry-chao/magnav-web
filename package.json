@@ -12,6 +12,8 @@
     "dev": "concurrently -k -n server,console -c cyan,magenta \"npm:dev:server\" \"npm:dev:console\"",
     "dev:server": "npm run dev -w @magnav/server",
     "dev:console": "npm run dev -w @magnav/console",
+    "debug:fullstack": "node --enable-source-maps --import tsx scripts/debug-fullstack.ts",
+    "debug:server": "node --enable-source-maps --import tsx scripts/debug-server.ts",
     "build": "npm run build -w @magnav/console && npm run build -w @magnav/server",
     "start": "node apps/server/dist/index.js",
     "test": "vitest run",

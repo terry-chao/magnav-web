@@ -54,6 +54,19 @@ npm run typecheck   # 三个 workspace 全量 strict typecheck
 npm run smoke       # 无浏览器端到端：登录 → 建会话 → 预检 → 武装 → 遥测 → 暂停 → 急停 → 复盘
 ```
 
+### VS Code 按 F5 调试
+
+在 **仓库根目录** 打开 VS Code，直接按 `F5`。默认配置「`▶ MAGNAV 全栈调试（F5）`」会：
+
+- 在 **5174** 启动 Vite（HMR），在 **8820** 启动 API + WebSocket；
+- 自动打开 Chrome 调试会话；
+- 支持 `apps/server/src/**`、`packages/protocol/src/**` 与 `apps/console/src/**` 的 TypeScript 断点。
+
+F5 调试端口与生产 `8810` 隔离，**可以同时保留 `npm start` 的实例**。
+
+调试下拉还提供：仅服务端、附加 tsx watch、仅 Chrome、Vitest 当前文件 / 全部、生产构建调试。
+完整说明与端口排查见 [`docs/DEBUGGING.md`](docs/DEBUGGING.md)。
+
 > 开发服务器默认 `HOST=127.0.0.1`、`PORT=8810`。生产构建由 Fastify 直接托管 `apps/console/dist`，并使用 CSP、HttpOnly Cookie 与同源 CSRF 校验。
 
 ### 演示账号
@@ -203,6 +216,7 @@ magnav-web/
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — 分层、协议、坐标、场景、状态机、性能
 - [`docs/SAFETY.md`](docs/SAFETY.md) — 安全论证边界、危害与控制、审计
 - [`docs/DEMO.md`](docs/DEMO.md) — 演示脚本与预期现象
+- [`docs/DEBUGGING.md`](docs/DEBUGGING.md) — VS Code F5、断点、端口与附加调试
 - [`docs/VERIFICATION.md`](docs/VERIFICATION.md) — 测试与验收记录
 - [`plan/磁控介入手术机器人前端方案.md`](plan/磁控介入手术机器人前端方案.md) — 原始方案
 

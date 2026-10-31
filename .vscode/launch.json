@@ -1,0 +1,161 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "▶ MAGNAV 全栈调试（F5）",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/debug-fullstack.ts",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--enable-source-maps", "--import", "tsx"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development",
+        "HOST": "127.0.0.1",
+        "PORT": "8820",
+        "MAGNAV_API_PORT": "8820"
+      },
+      "sourceMaps": true,
+      "smartStep": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "autoAttachChildProcesses": true,
+      "serverReadyAction": {
+        "pattern": "MAGNAV DEBUG READY (http://[^\\s]+)",
+        "uriFormat": "%s",
+        "action": "debugWithChrome"
+      }
+    },
+    {
+      "name": "Server · 仅后端（tsx, :8810）",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/scripts/debug-server.ts",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--enable-source-maps", "--import", "tsx"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development",
+        "HOST": "127.0.0.1",
+        "PORT": "8820"
+      },
+      "sourceMaps": true,
+      "smartStep": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      "name": "Server · 附加到 tsx watch（:9229）",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "cwd": "${workspaceFolder}",
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "preLaunchTask": "server:debug:watch"
+    },
+    {
+      "name": "Console · Chrome（调试页 :5174）",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:5174",
+      "webRoot": "${workspaceFolder}/apps/console",
+      "sourceMaps": true,
+      "pathMapping": {
+        "/src": "${workspaceFolder}/apps/console/src"
+      },
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      "name": "Console · Chrome（开发页 :5173）",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://127.0.0.1:5173",
+      "webRoot": "${workspaceFolder}/apps/console",
+      "sourceMaps": true,
+      "pathMapping": {
+        "/src": "${workspaceFolder}/apps/console/src"
+      },
+      "preLaunchTask": "vite:ensure",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      "name": "Console · 附加 Chrome（:9222）",
+      "type": "chrome",
+      "request": "attach",
+      "port": 9222,
+      "webRoot": "${workspaceFolder}/apps/console",
+      "sourceMaps": true,
+      "pathMapping": {
+        "/src": "${workspaceFolder}/apps/console/src"
+      },
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"]
+    },
+    {
+      "name": "Vitest · 当前测试文件",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": ["run", "${relativeFile}", "--reporter=verbose"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "smartStep": true,
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Vitest · 全部",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/node_modules/vitest/vitest.mjs",
+      "args": ["run", "--reporter=verbose"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "sourceMaps": true,
+      "smartStep": true,
+      "autoAttachChildProcesses": true,
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Server · 编译产物调试（:8820）",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/apps/server/dist/index.js",
+      "runtimeArgs": ["--enable-source-maps"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "development",
+        "HOST": "127.0.0.1",
+        "PORT": "8820"
+      },
+      "preLaunchTask": "build:server",
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Production · 构建并运行（:8810）",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/apps/server/dist/index.js",
+      "runtimeArgs": ["--enable-source-maps"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "env": {
+        "NODE_ENV": "production",
+        "HOST": "127.0.0.1",
+        "PORT": "8810"
+      },
+      "preLaunchTask": "build:prod",
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"],
+      "serverReadyAction": {
+        "pattern": "http://127\\.0\\.0\\.1:8810",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    }
+  ]
+}
