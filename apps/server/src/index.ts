@@ -10,7 +10,9 @@ const port = Number(process.env.PORT ?? 8810);
 const host = process.env.HOST ?? '127.0.0.1';
 
 async function main(): Promise<void> {
-  const audit = new AuditChain(resolve(process.cwd(), 'data', 'audit.jsonl'));
+  const auditPath =
+    process.env.MAGNAV_AUDIT_PATH ?? resolve(process.cwd(), 'data', 'audit.jsonl');
+  const audit = new AuditChain(auditPath);
   const seed = buildSeedData();
   const service = new ConsoleService(seed, audit);
   const auth = new AuthService();

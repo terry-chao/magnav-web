@@ -36,7 +36,7 @@
 
 - **服务端改动**：Vite 会 HMR 前端，但服务端不会自动重启；停止（Shift+F5）再 F5。
 - **前端改动**：Vite HMR 立即生效，Chrome 调试会话保持。
-- **生产 8810 不受影响**：可以同时 `npm start` 和 F5。
+- **生产 8810 不受影响**：可以同时 `npm start` 和 F5；调试实例使用独立的 `data/debug-audit.jsonl`，不会与生产审计链互相追加。
 - 若 Chrome 没有自动打开：手动选择「Console · Chrome（调试页 :5174）」。
 - 如果 TS 断点显示为空心圆（未绑定）：
   1. 确认 `sourceMaps` 已开启（配置已开启）；
