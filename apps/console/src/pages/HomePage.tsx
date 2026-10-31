@@ -251,6 +251,7 @@ const STACK = [
 
 export function HomePage() {
   const navigate = useNavigate();
+  const staticDemo = import.meta.env.VITE_STATIC_DEMO === '1';
   const user = useSessionStore((s) => s.user);
   const setAuth = useSessionStore((s) => s.setAuth);
   const [busy, setBusy] = useState(false);
@@ -258,6 +259,10 @@ export function HomePage() {
 
   const startDemo = async () => {
     if (busy) return;
+    if (staticDemo) {
+      navigate('/demo');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -297,28 +302,44 @@ export function HomePage() {
         </nav>
 
         <div className="home-nav__actions">
-          {user ? (
-            <Link to="/cases" className="home-btn home-btn--ghost home-btn--sm">
-              控制台
-            </Link>
-          ) : (
-            <Link to="/login" className="home-btn home-btn--ghost home-btn--sm">
-              登录
-            </Link>
-          )}
+          {!staticDemo ? (
+            <>
+              {user ? (
+                <Link to="/cases" className="home-btn home-btn--ghost home-btn--sm">
+                  控制台
+                </Link>
+              ) : (
+                <Link to="/login" className="home-btn home-btn--ghost home-btn--sm">
+                  登录
+                </Link>
+              )}
+            </>
+          ) : null}
           <button type="button" className="home-btn home-btn--primary home-btn--sm" onClick={() => void startDemo()} disabled={busy}>
-            {busy ? '装载中…' : '进入演示'}
+            {busy ? '装载中…' : staticDemo ? '开始演示' : '进入演示'}
             <ArrowRight size={15} />
           </button>
         </div>
       </header>
+
+      {staticDemo ? (
+        <div className="home-static-banner">
+          <span>
+            <Github size={13} /> GITHUB PAGES 静态版
+          </span>
+          <span>浏览器内运行共享状态机 + 模拟器 · 无登录 / 无服务端连接</span>
+          <a href="https://github.com/terry-chao/magnav-web" target="_blank" rel="noreferrer">
+            查看完整版
+          </a>
+        </div>
+      ) : null}
 
       <main>
         <section className="home-hero">
           <div className="home-hero__copy">
             <div className="home-kicker">
               <i />
-              WEB FULL-STACK · RESEARCH PROTOTYPE
+              {staticDemo ? 'GITHUB PAGES · STATIC DEMO' : 'WEB FULL-STACK · RESEARCH PROTOTYPE'}
             </div>
             <h1>
               看得见导管，
@@ -332,7 +353,7 @@ export function HomePage() {
 
             <div className="home-actions">
               <button type="button" className="home-btn home-btn--primary home-btn--lg" onClick={() => void startDemo()} disabled={busy}>
-                {busy ? '正在装载病例…' : '进入 2 分钟实操'}
+                {busy ? '正在装载病例…' : staticDemo ? '进入浏览器演示' : '进入 2 分钟实操'}
                 <ArrowRight size={18} />
               </button>
               <a className="home-btn home-btn--ghost home-btn--lg" href="#capabilities">
@@ -349,7 +370,9 @@ export function HomePage() {
 
             <div className="home-note">
               <CheckCircle2 size={14} />
-              预置 LAD 病例 · 无需注册 · 操作写入本地审计
+              {staticDemo
+                ? '浏览器内运行 · 无需注册 · 演示数据不离开本机'
+                : '预置 LAD 病例 · 无需注册 · 操作写入本地审计'}
             </div>
           </div>
 
@@ -399,8 +422,9 @@ export function HomePage() {
               是现在就能操作的病例。
             </h2>
             <p>
-              点击「进入 2 分钟实操」，系统会以演示术者登录、装载预置 LAD 病例并打开真实术中控制台。
-              每一步都是实际命令，不是前端动画。
+              {staticDemo
+                ? '点击「进入浏览器演示」，会直接打开一个在浏览器内运行的真实状态机 + 运动学模拟器。没有服务端，也没有录屏。'
+                : '点击「进入 2 分钟实操」，系统会以演示术者登录、装载预置 LAD 病例并打开真实术中控制台。每一步都是实际命令，不是前端动画。'}
             </p>
           </div>
 
@@ -440,7 +464,7 @@ export function HomePage() {
                 </li>
               </ul>
               <button type="button" className="home-btn home-btn--primary home-btn--lg" onClick={() => void startDemo()} disabled={busy}>
-                {busy ? '正在装载病例…' : '开始这次演练'}
+                {busy ? '正在装载病例…' : staticDemo ? '开始浏览器演练' : '开始这次演练'}
                 <ArrowRight size={18} />
               </button>
               <p className="home-mission__foot">
@@ -504,12 +528,12 @@ export function HomePage() {
               <span>实际运行 · C-2026-1031 · AUTO RUNNING</span>
               <span>1600 × 1000</span>
             </div>
-            <img
-              src="/showcase/procedure.png"
-              alt="MAGNAV 术中控制台实际运行截图：3D 血管树、遥测曲线、线圈状态与命令栏"
-              width={1600}
-              height={1050}
-            />
+              <img
+                src={`${import.meta.env.BASE_URL}showcase/procedure.png`}
+                alt="MAGNAV 术中控制台实际运行截图：3D 血管树、遥测曲线、线圈状态与命令栏"
+                width={1600}
+                height={1050}
+              />
             <figcaption>
               <span>真实运行截图，不是效果图。</span>
               <span>3D 血管树 · 96 点导管 · 12 路线圈 · 10 Hz 回顾记录</span>
@@ -610,7 +634,7 @@ export function HomePage() {
           </div>
           <div className="home-final__actions">
             <button type="button" className="home-btn home-btn--primary home-btn--lg" onClick={() => void startDemo()} disabled={busy}>
-              {busy ? '正在装载病例…' : '进入交互演示'}
+              {busy ? '正在装载病例…' : staticDemo ? '进入静态演示' : '进入交互演示'}
               <ArrowRight size={18} />
             </button>
             <a className="home-btn home-btn--ghost home-btn--lg" href="https://github.com/terry-chao/magnav-web" target="_blank" rel="noreferrer">

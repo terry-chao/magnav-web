@@ -15,9 +15,12 @@ const queryClient = new QueryClient({
   },
 });
 
+const baseUrl = import.meta.env.BASE_URL;
+const basename = baseUrl === '/' ? undefined : baseUrl.replace(/\/$/, '');
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <QueryClientProvider client={queryClient}>
-    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+    <BrowserRouter basename={basename} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <App />
     </BrowserRouter>
   </QueryClientProvider>,

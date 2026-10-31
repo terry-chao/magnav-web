@@ -120,6 +120,24 @@ npm run build
 
 > 后续版本应把「124 Hz」替换为服务端实际发送计数与 P99 延迟的正式 benchmark。
 
+### 2.5 GitHub Pages 静态版
+
+```bash
+npm run build:pages
+npm run preview:pages
+# http://127.0.0.1:4173/magnav-web/
+```
+
+| 检查 | 结果 |
+|---|---|
+| 首页在 `/magnav-web/` 子路径加载，静态资源与截图路径正确 | ✅ |
+| 首页 CTA → `/magnav-web/demo`，直接刷新深链可用 | ✅ |
+| 静态演示：预检 → 双人确认 → 长按启动 → 暂停 | ✅ |
+| 浏览器内共享 `procedureMachine` / `RobotEngine` / 3D 场景，无服务端请求 | ✅ |
+| 404 回退、`.nojekyll`、Pages workflow 产物 | ✅（本地构建验证） |
+
+静态版不包含登录、SQLite、WebSocket 与多人同步；这些仍由 `npm start` 的 Node 服务端提供。
+
 ---
 
 ## 3. 安全场景验证

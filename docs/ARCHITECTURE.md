@@ -25,7 +25,14 @@ Fastify :8810
 
 没有 Electron 主进程、本地 IPC 或原生设备服务。需要硬件的部分（串口、脚踏、相机、1 kHz 实时层）在本原型中由模拟器替代，接口边界保留。
 
-### 1.1 为什么是单端口 / 单 WebSocket
+### 1.1 两种交付形态
+
+- **完整 Web 全栈**：`npm start` 由 Fastify 托管 SPA + API/WS + SQLite，支持登录、多人、持久化与完整审计。
+- **GitHub Pages 静态演示**：`npm run build:pages` 输出 `apps/console/dist-pages`，只把共享状态机、模拟器与 3D 场景打包进浏览器；没有 API、WebSocket 或数据库。首页 CTA 指向 `/demo`，用于零安装体验。
+
+两者共用 `@magnav/protocol`、`procedureMachine`、场景与视觉代码；差异只在“谁来持有权威状态”。
+
+### 1.2 为什么是单端口 / 单 WebSocket
 
 - 浏览器与 API 同源，Cookie `SameSite=Strict` + CSRF 头即可工作，无需 CORS。
 - 方案明确要求「命令通道不要两套」；遥测、事件、命令共用一条连接，鉴权、重连、快照恢复只有一个生命周期。

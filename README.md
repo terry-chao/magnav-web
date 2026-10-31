@@ -49,6 +49,26 @@ npm start
 # 首页可直接进入「2 分钟交互演示」，无需注册
 ```
 
+### GitHub Pages（静态演示）
+
+GitHub Pages 只能托管静态文件，因此 Pages 版是**浏览器内演示**：共享 `procedureMachine`、`RobotEngine`、3D 场景与安全门禁；没有登录、SQLite、WebSocket 或多人同步。
+
+- Pages 地址：<https://terry-chao.github.io/magnav-web/>
+- 工作流：[`.github/workflows/pages.yml`](.github/workflows/pages.yml)
+- 首次使用需在仓库 **Settings → Pages → Build and deployment** 选择 **GitHub Actions**。
+- 本地构建与预览：
+
+```bash
+npm run build:pages
+npm run preview:pages
+# 打开 http://127.0.0.1:4173/magnav-web/
+# 产物：apps/console/dist-pages（含 404.html 与 .nojekyll）
+```
+
+Pages 版通过 `VITE_STATIC_DEMO=1` 把首页 CTA 指向 `/demo`；完整服务端版本仍使用 `npm start`，两者共用同一套协议、状态机与场景代码。
+
+> 如果仓库名不是 `magnav-web`，Pages 工作流会自动读取 `github.event.repository.name`；本地构建可用 `PAGES_BASE=/your-repo/ npm run build:pages` 覆盖。
+
 其他命令：
 
 ```bash

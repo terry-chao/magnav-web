@@ -153,6 +153,7 @@ tmp-*.py
 playwright-report/
 test-results/
 .blob-report/
+dist-pages/
 
 # Astro generated types
 .astro/

@@ -3,8 +3,11 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 const apiPort = process.env.MAGNAV_API_PORT ?? '8810';
+const pagesBase = process.env.PAGES_BASE ?? '/magnav-web/';
+const base = process.env.GITHUB_PAGES === '1' ? (pagesBase.endsWith('/') ? pagesBase : `${pagesBase}/`) : '/';
 
 export default defineConfig({
+  base,
   plugins: [react()],
   resolve: {
     alias: {
@@ -32,7 +35,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: 'dist',
+    outDir: process.env.GITHUB_PAGES === '1' ? 'dist-pages' : 'dist',
     sourcemap: false,
     chunkSizeWarningLimit: 2000,
   },

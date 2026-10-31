@@ -7,6 +7,7 @@ import { realtime } from './services/realtime';
 import { useSessionStore } from './store/session';
 import { LoginPage } from './pages/LoginPage';
 import { HomePage } from './pages/HomePage';
+import { StaticDemoPage } from './pages/StaticDemoPage';
 import { CasesPage } from './pages/CasesPage';
 import { PlanningPage } from './pages/PlanningPage';
 import { ProcedurePage } from './pages/ProcedurePage';
@@ -67,8 +68,13 @@ export function App() {
   const setAuth = useSessionStore((s) => s.setAuth);
   const logout = useSessionStore((s) => s.logout);
   const navigate = useNavigate();
+  const staticDemo = import.meta.env.VITE_STATIC_DEMO === '1';
 
   useEffect(() => {
+    if (staticDemo) {
+      setBoot('anon');
+      return;
+    }
     let cancelled = false;
     http
       .me()
@@ -84,7 +90,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [setAuth, setBoot]);
+  }, [setAuth, setBoot, staticDemo]);
 
   useEffect(() => {
     const handler = () => {
@@ -116,7 +122,8 @@ export function App() {
     <>
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/demo" element={<StaticDemoPage />} />
+        <Route path="/login" element={staticDemo ? <Navigate to="/" replace /> : <LoginPage />} />
         <Route element={<RequireAuth />}>
           <Route path="/cases" element={<CasesPage />} />
           <Route path="/case/:caseId/plan" element={<PlanningPage />} />
